@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSyncedState } from "../private-store";
 
 type Tx = { id: string; type: "income" | "expense"; amount: number; date: string; category: string; account: string; note: string };
 type Account = { id: string; name: string; group: "cash" | "deposit" | "emergency" | "goal" | "liability"; balance: number };
@@ -15,7 +16,6 @@ type ReceiptDraft = { type: ReceiptKind; amount: string; merchant: string; date:
 type ReceiptSyncResult = { message: string };
 type Data = { accounts: Account[]; transactions: Tx[]; goals: Goal[]; allocations: Allocation[]; investments: Investment[]; settings: { currency: "CNY" | "USD" | "HKD" | "EUR" | "JPY"; emergencyTarget: number; allocationRules: Record<string, number>; targetAllocation: Record<string, number> }; trend: { month: string; netWorth: number }[]; successes?: Success[] };
 
-const storageKey = "personal-os-finance-v1";
 const labels = ["生活", "安全", "梦想", "金鹅", "自由"];
 const aliases: Record<string, string> = { 必要生活: "生活", 应急储备: "安全", 目标储蓄: "梦想", 长期投资: "金鹅", 自由消费: "自由" };
 const sources = ["工资", "兼职", "生活费", "自媒体", "奖金", "其他"];
@@ -46,7 +46,7 @@ const demoData: Data = {
   transactions: [
     { id: "sample-income", type: "income", amount: 1000, date: "2026-08-11", category: "示例收入", account: "银行卡", note: "示例：收到一笔钱" },
   ],
-  goals: [{ id: "sample-dream", name: "富国岛旅行", target: 8000, current: 0, deadline: "2027-08-01", type: "中期", priority: "高", note: "示例梦想，可改成你的真实梦想。", icon: "", description: "示例：把一个想去的地方变成储蓄罐。" }],
+  goals: [{ id: "sample-dream", name: "示例梦想", target: 8000, current: 0, deadline: "2027-12-31", type: "中期", priority: "高", note: "示例梦想，可改成你的真实梦想。", icon: "", description: "示例：把一个目标变成储蓄计划。" }],
   allocations: [{ id: "sample-plan", date: "2026-08-11", amount: 1000, source: "示例收入", plan: { 生活: 400, 安全: 100, 梦想: 200, 金鹅: 200, 自由: 100 } }],
   investments: [{ id: "sample-goose", name: "金鹅本金示例", type: "长期本金", buyDate: "2026-08-11", invested: 200, currentValue: 200, quantity: 0, cost: 200, price: 200, fee: 0, reason: "示例：长期留下来的本金。", horizon: "长期", exitRule: "尽量不取出。", riskTolerance: "不盯短期波动。", note: "" }],
   settings: { currency: "CNY", emergencyTarget: 10000, allocationRules: { 生活: 40, 安全: 10, 梦想: 20, 金鹅: 20, 自由: 10 }, targetAllocation: { "长期本金": 100 } },
@@ -115,8 +115,7 @@ function migrate(raw: Data): Data {
 }
 
 export function FinanceSystem() {
-  const [data, setData] = useState<Data>(demoData);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [data, setData] = useSyncedState<Data>("finance", demoData);
   const [view, setView] = useState("money");
   const [incomeOpen, setIncomeOpen] = useState(false);
   const [income, setIncome] = useState({ amount: "2000", source: "自媒体" });
@@ -126,20 +125,6 @@ export function FinanceSystem() {
   const [tx, setTx] = useState({ type: "expense" as "income" | "expense", amount: "", date: today(), category: "大额支出", account: "银行卡", note: "" });
   const [asset, setAsset] = useState({ name: "", type: "长期本金", invested: "", currentValue: "", reason: "" });
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      const saved = window.localStorage.getItem(storageKey);
-      if (saved) {
-        try { setData(migrate(JSON.parse(saved))); } catch { setData(demoData); }
-      }
-      setDataLoaded(true);
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, []);
-
-  useEffect(() => {
-    if (dataLoaded) window.localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [data, dataLoaded]);
 
   const stats = useMemo(() => {
     const accountAssets = sum(data.accounts.filter((a) => a.group !== "liability").map((a) => a.balance));

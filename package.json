@@ -17,6 +17,9 @@
     "@tesseract.js-data/chi_sim": "^1.0.0",
     "@tesseract.js-data/eng": "^1.0.0",
     "drizzle-orm": "0.45.2",
+    "jszip": "^3.10.1",
+    "lucide-react": "^1.41.0",
+    "qrcode": "^1.5.4",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "tesseract.js": "^7.0.0"

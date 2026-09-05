@@ -4769,3 +4769,23 @@ h1 {
     padding-left: 40px;
   }
 }
+/* Private storage controls share the existing quiet workspace palette. */
+.private-toolbar { position: sticky; top: 0; z-index: 55; min-height: 40px; display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: 4px 20px; background: #faf7f2; border-bottom: 1px solid #dfd7cc; font-size: 14px; }
+.private-toolbar span { display: inline-flex; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.private-toolbar button, .private-panel header button { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 6px; }
+.private-entry { max-width: 480px; margin: 12vh auto; padding: 24px; }
+.private-entry h1 { font-size: 28px; }
+.private-entry label { display: grid; gap: 8px; margin: 24px 0; }
+.private-entry input { min-width: 0; width: 100%; }
+.private-entry button, .private-panel button, .private-migration button { border: 1px solid #c9b9a9; background: #fffaf4; color: #593f31; border-radius: 6px; padding: 10px 14px; min-height: 42px; cursor: pointer; margin: 4px; display: inline-flex; gap: 7px; align-items: center; font: inherit; font-size: 15px; }
+.private-overlay { position: fixed; inset: 0; background: #0006; z-index: 200; display: flex; justify-content: flex-end; }
+.private-panel { width: min(560px, 100%); height: 100%; overflow-y: auto; background: #faf7f2; padding: 24px; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+.private-panel header, .private-device { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.private-panel h2 { font-size: 24px; }.private-panel h3 { margin-top: 28px; font-size: 18px; }
+.private-panel pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 300px; overflow: auto; font-size: 14px; }
+.private-panel p { font-size: 15px; overflow-wrap: anywhere; }
+.pairing-code { display: grid; justify-items: start; gap: 8px; padding: 12px 0; }
+.private-migration { padding: 20px; margin: 20px; border-top: 1px solid #c9b9a9; background: #fffaf4; }
+.private-device { padding: 8px 0; border-bottom: 1px solid #dfd7cc; }
+audio { max-width: 100%; }
+@media (max-width: 700px) { .private-toolbar { padding: 4px 10px; }.private-panel { padding: 18px; }.private-entry { margin-top: 7vh; }.sidebar { top: 44px; }.private-migration { margin: 12px; padding: 12px; } }

@@ -1,10 +1,7 @@
 import { OSShell } from "../os-shell";
-import { skillLibrary } from "../os-data";
-import { fullSkillRecords } from "../skill-records";
-import { EditableSkillLibrary } from "./EditableSkillLibrary";
+import { PrivateSkills } from "./PrivateSkills";
 
 export default function SkillsPage() {
-  const detailSlugs = fullSkillRecords.map((record) => record.slug);
 
   return (
     <OSShell active="Skills" kicker="Skill Inbox" title="收录库" description="专门收集你上网看到的优质 skill、工具、方法论、prompt、工作流和案例。列表负责索引，详情页保存完整原文，方便之后复制复用。">
@@ -13,7 +10,7 @@ export default function SkillsPage() {
           <div className="panel-heading">
             <div><p className="eyebrow">Library</p><h3>已收录内容</h3></div>
           </div>
-          <EditableSkillLibrary detailSlugs={detailSlugs} skills={skillLibrary} />
+          <PrivateSkills />
         </article>
         <article className="panel">
           <div className="panel-heading"><div><p className="eyebrow">Capture Template</p><h3>收录字段</h3></div></div>

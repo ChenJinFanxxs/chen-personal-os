@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useSyncedState, queueAttachment, PrivateAudio } from "../private-store";
 
 type Tab = "plan" | "today" | "practice" | "scenes" | "archive" | "guide";
 type StageKey = "foundation" | "interview" | "application" | "visa" | "departure";
@@ -40,6 +41,7 @@ type MaterialItem = {
 };
 
 type RecordingItem = {
+  audioId?: string;
   id: string;
   date: string;
   question: string;
@@ -168,7 +170,7 @@ const guideSteps = [
 ];
 
 const defaultData: EnglishData = {
-  profile: { targetDate: "2027-06-01", daysPerWeek: 5, dailyMinutes: 30, targetLevel: "SWT 6-7 级实用沟通" },
+  profile: { targetDate: "2027-12-31", daysPerWeek: 5, dailyMinutes: 30, targetLevel: "SWT 实用沟通" },
   dailyDate: "",
   dailyTasks: [],
   assessment: Object.fromEntries(assessmentItems.map((item) => [item.id, 0])),
@@ -273,7 +275,7 @@ function normalizeEnglishData(value: unknown): EnglishData | null {
   };
 }
 
-function readSavedData(): EnglishData {
+export function readSavedData(): EnglishData {
   try {
     const saved = window.localStorage.getItem(storageKey);
     if (saved) return normalizeEnglishData(JSON.parse(saved)) ?? defaultData;
@@ -322,7 +324,7 @@ function Field({ label, value, onChange, multiline = false, placeholder = "", ty
 
 export function EnglishSystem() {
   const [tab, setTab] = useState<Tab>("plan");
-  const [data, setData] = useState<EnglishData>(defaultData);
+  const [data, setData] = useSyncedState<EnglishData>("english", defaultData);
   const [loaded, setLoaded] = useState(false);
   const [todayDate, setTodayDate] = useState("");
   const [activeQuestionId, setActiveQuestionId] = useState(coreQuestions[0].id);
@@ -341,10 +343,11 @@ export function EnglishSystem() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
+  // Initial daily-task rollover runs once after the synchronized snapshot is available.
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       const currentDate = localDateString(new Date());
-      const saved = readSavedData();
+      const saved = data;
       const remaining = daysBetween(currentDate, saved.profile.targetDate);
       const currentStage = stageFromDays(remaining);
       const nextData = saved.dailyDate === currentDate && saved.dailyTasks.length
@@ -356,12 +359,10 @@ export function EnglishSystem() {
       setLoaded(true);
     }, 0);
     return () => window.clearTimeout(timerId);
+  // The synchronized snapshot is intentionally captured once during initialization.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (!loaded) return;
-    window.localStorage.setItem(storageKey, JSON.stringify(data));
-  }, [data, loaded]);
 
   useEffect(() => {
     if (timer.mode === "idle") return;
@@ -463,9 +464,13 @@ export function EnglishSystem() {
     setRecordingState("idle");
   }
 
-  function savePracticeReview() {
+  async function savePracticeReview() {
     if (!recordDraft.issue.trim() && !recordDraft.improvedSentence.trim() && !audioUrl) return;
+    let audioId: string | undefined;
+    try { if (audioUrl) audioId = await queueAttachment(await (await fetch(audioUrl)).blob()); }
+    catch { setRecordError("录音保存失败，请下载本次录音后重试。"); return; }
     const item: RecordingItem = {
+      audioId,
       id: uid("recording"),
       date: todayDate || "未记录日期",
       question: activeQuestion.question,
@@ -476,6 +481,7 @@ export function EnglishSystem() {
     };
     setData((current) => ({ ...current, recordings: [item, ...current.recordings] }));
     setRecordDraft({ issue: "", improvedSentence: "", score: "" });
+    setAudioUrl("");
   }
 
   function addPhrase() {
@@ -918,6 +924,7 @@ function ArchiveView({ data, phraseDraft, setPhraseDraft, materialDraft, setMate
       <section className="swt-archive-grid">
         <ArchivePanel eyebrow="Recording Review" title="录音复盘记录">
           <ArchiveList empty="完成第一次录音后，这里会保留题目、卡点和改进句。" items={data.recordings.map((item) => ({ id: item.id, title: item.question, body: item.issue, meta: `${item.date} · ${item.score} · 改进：${item.improvedSentence}` }))} remove={removeRecording} />
+          {data.recordings.filter(item => item.audioId).map(item => <div key={item.id}><p>{item.question} · {item.date}</p><PrivateAudio id={item.audioId!} /></div>)}
         </ArchivePanel>
 
         <ArchivePanel eyebrow="Weekly Review" title="一周只确定一个改进方向">

@@ -1,6 +1,7 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useSyncedState } from "../private-store";
 
 type SkillItem = {
   slug: string;
@@ -27,8 +28,6 @@ type EditableSkillLibraryProps = {
   skills: SkillItem[];
 };
 
-const editsStorageKey = "personal-os-skill-library-edits-v1";
-const foldersStorageKey = "personal-os-skill-folders-v1";
 const inboxFolder = "未分类";
 const trashFolder = "回收站";
 const emptyFolderState: FolderState = { folders: [], assignments: {}, trashed: [] };
@@ -48,59 +47,15 @@ function shouldIgnoreDrag(target: EventTarget | null) {
   return target instanceof HTMLElement && Boolean(target.closest("input, select, textarea, a, button"));
 }
 
-function readSavedDrafts() {
-  try {
-    const savedDrafts = window.localStorage.getItem(editsStorageKey);
-    return savedDrafts ? (JSON.parse(savedDrafts) as Record<string, SkillDraft>) : {};
-  } catch {
-    return {};
-  }
-}
-
-function readSavedFolderState(): FolderState {
-  try {
-    const savedFolders = window.localStorage.getItem(foldersStorageKey);
-    if (!savedFolders) return emptyFolderState;
-    const parsed = JSON.parse(savedFolders) as Partial<FolderState>;
-    return {
-      folders: parsed.folders ?? [],
-      assignments: parsed.assignments ?? {},
-      trashed: parsed.trashed ?? [],
-    };
-  } catch {
-    return emptyFolderState;
-  }
-}
-
 export function EditableSkillLibrary({ detailSlugs, skills }: EditableSkillLibraryProps) {
   const detailSet = useMemo(() => new Set(detailSlugs), [detailSlugs]);
-  const [drafts, setDrafts] = useState<Record<string, SkillDraft>>({});
-  const [folderState, setFolderState] = useState<FolderState>(emptyFolderState);
-  const [hasLoadedLocalState, setHasLoadedLocalState] = useState(false);
+  const [drafts, setDrafts] = useSyncedState<Record<string, SkillDraft>>("skill-edits", {});
+  const [folderState, setFolderState] = useSyncedState<FolderState>("skill-folders", emptyFolderState);
   const [activeFolder, setActiveFolder] = useState("全部");
   const [newFolderName, setNewFolderName] = useState("");
   const [draggingSlug, setDraggingSlug] = useState<string | null>(null);
   const [dropTargetFolder, setDropTargetFolder] = useState<string | null>(null);
 
-  useEffect(() => {
-    const loadSavedState = window.setTimeout(() => {
-      setDrafts(readSavedDrafts());
-      setFolderState(readSavedFolderState());
-      setHasLoadedLocalState(true);
-    }, 0);
-
-    return () => window.clearTimeout(loadSavedState);
-  }, []);
-
-  useEffect(() => {
-    if (!hasLoadedLocalState) return;
-    window.localStorage.setItem(editsStorageKey, JSON.stringify(drafts));
-  }, [drafts, hasLoadedLocalState]);
-
-  useEffect(() => {
-    if (!hasLoadedLocalState) return;
-    window.localStorage.setItem(foldersStorageKey, JSON.stringify(folderState));
-  }, [folderState, hasLoadedLocalState]);
 
   const folderTabs = ["全部", inboxFolder, ...folderState.folders, trashFolder];
   const trashedSet = useMemo(() => new Set(folderState.trashed), [folderState.trashed]);

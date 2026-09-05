@@ -19,8 +19,8 @@ export function OSShell({ active, kicker, title, description, actions = [], acti
         <a className="brand-block" href="/">
           <div className="brand-mark">C</div>
           <div>
-            <p className="eyebrow">Warm Archive OS</p>
-            <h1>Chen&apos;s Personal OS</h1>
+            <p className="eyebrow">Personal OS</p>
+            <h1>个人工作台</h1>
           </div>
         </a>
 

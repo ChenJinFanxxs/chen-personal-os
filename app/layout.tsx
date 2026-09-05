@@ -1,10 +1,11 @@
 ﻿import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
+import { PrivateStore } from "./private-store";
 
-const title = "Chen's Personal OS";
+const title = "个人工作台";
 const description =
-  "A private operating system for goals, projects, income, learning, publishing, archives, and saved skills.";
+  "一个用于目标、项目、理财、学习、内容和资料管理的个人工作台。";
 
 export async function generateMetadata(): Promise<Metadata> {
   const headerList = await headers();
@@ -15,6 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     title,
+    manifest: "/manifest.webmanifest",
     description,
     metadataBase: new URL(baseUrl),
     icons: {
@@ -31,7 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
           url: imageUrl,
           width: 1200,
           height: 630,
-          alt: "Chen's Personal OS warm archive dashboard preview",
+          alt: "个人工作台预览",
         },
       ],
     },
@@ -51,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
-      <body>{children}</body>
+      <body><PrivateStore>{children}</PrivateStore></body>
     </html>
   );
 }
