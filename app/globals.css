@@ -4515,6 +4515,7 @@ h1 {
   .panel-heading,
   .hero-panel {
     display: grid;
+    grid-template-columns: 1fr;
     gap: 12px;
   }
 
