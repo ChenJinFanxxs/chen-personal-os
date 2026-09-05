@@ -1,4 +1,3 @@
-﻿import Link from "next/link";
 import { notFound } from "next/navigation";
 import { OSShell } from "../../os-shell";
 import { CopyMarkdownButton } from "../../copy-markdown-button";
@@ -18,7 +17,7 @@ export default function SkillDetailPage({ params }: { params: { slug: string } }
       kicker="Skill Detail"
       title={record.name}
       description="这里保存完整 Markdown 原文，之后需要使用时可以直接复制整份 skill。"
-      actionSlot={<Link className="return-link" href="/skills">返回收录库</Link>}
+      actionSlot={<a className="return-link" href="/skills">返回收录库</a>}
     >
       <section className="page-grid single">
         <article className="panel wide markdown-panel merged-skill-panel">

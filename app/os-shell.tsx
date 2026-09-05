@@ -1,4 +1,3 @@
-﻿import Link from "next/link";
 import type { ReactNode } from "react";
 import { navItems } from "./os-data";
 
@@ -17,20 +16,20 @@ export function OSShell({ active, kicker, title, description, actions = [], acti
     <main className="shell">
       <div className="sidebar-hover-zone" aria-hidden="true" />
       <aside className="sidebar" aria-label="Personal OS navigation">
-        <Link className="brand-block" href="/">
+        <a className="brand-block" href="/">
           <div className="brand-mark">C</div>
           <div>
             <p className="eyebrow">Warm Archive OS</p>
             <h1>Chen&apos;s Personal OS</h1>
           </div>
-        </Link>
+        </a>
 
         <nav className="nav-list">
           {navItems.map((item) => (
-            <Link className={item.key === active ? "nav-item active" : "nav-item"} href={item.href} key={item.key}>
+            <a className={item.key === active ? "nav-item active" : "nav-item"} href={item.href} key={item.key}>
               <span>{item.label}</span>
               <small>{item.key}</small>
-            </Link>
+            </a>
           ))}
         </nav>
       </aside>

@@ -4420,3 +4420,352 @@ h1 {
     width: 100%;
   }
 }
+
+/* Mobile refinement pass */
+@media (max-width: 700px) {
+  html {
+    scroll-padding-top: 12px;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  .shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    width: 100%;
+    height: auto;
+    max-height: 46vh;
+    padding: 12px 14px 10px;
+    overflow: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(183, 164, 141, 0.42);
+    transform: none;
+  }
+
+  .sidebar::before,
+  .sidebar::after,
+  .sidebar-hover-zone {
+    display: none;
+  }
+
+  .brand-block {
+    margin: 0 0 10px;
+    padding: 0;
+  }
+
+  .brand-mark {
+    width: 34px;
+    height: 34px;
+  }
+
+  .brand-block h1 {
+    font-size: 15px;
+  }
+
+  .brand-block .eyebrow {
+    display: none;
+  }
+
+  .nav-list {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .nav-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-item {
+    flex: 0 0 auto;
+    min-height: 36px;
+    padding: 8px 11px;
+    border: 1px solid rgba(226, 214, 198, 0.78);
+    border-radius: 999px;
+    background: rgba(255, 250, 242, 0.56);
+    transform: none;
+  }
+
+  .nav-item::before,
+  .nav-item small {
+    display: none;
+  }
+
+  .nav-item.active span {
+    padding-left: 0;
+  }
+
+  .workspace,
+  .page-workspace {
+    width: 100%;
+    padding: 16px 12px 28px;
+  }
+
+  .topbar,
+  .page-topbar,
+  .panel-heading,
+  .hero-panel {
+    display: grid;
+    gap: 12px;
+  }
+
+  .topbar h2 {
+    font-size: 24px;
+  }
+
+  .page-description,
+  .hero-copy p:last-child {
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .hero-panel,
+  .panel,
+  .focus-card,
+  .today-card,
+  .wealth-main-card,
+  .wealth-soft-card,
+  .wealth-income-panel,
+  .wealth-note,
+  .dream-jar,
+  .receipt-scanner-card {
+    padding: 15px;
+  }
+
+  .panel {
+    min-height: auto;
+  }
+
+  .hero-copy h3 {
+    font-size: 24px;
+    line-height: 1.22;
+  }
+
+  .focus-grid,
+  .content-grid,
+  .page-grid,
+  .wealth-simple-grid,
+  .swt-plan-layout,
+  .swt-today-layout,
+  .swt-practice-layout,
+  .swt-guide-layout,
+  .swt-archive-grid,
+  .wealth-money-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .goal-row,
+  .goal-list.compact .goal-row,
+  .goal-row.detailed,
+  .project-card,
+  .quiet-list li,
+  .finance-table div {
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .skill-table {
+    gap: 7px;
+  }
+
+  .skill-row,
+  .skill-table.mini .skill-row,
+  .editable-skill-table .editable-row {
+    grid-template-columns: 1fr;
+    min-height: auto;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .editable-row:hover,
+  .editable-row:focus-within {
+    min-height: auto;
+  }
+
+  .editable-title {
+    margin: 0;
+    padding: 0;
+    font-size: 18px;
+  }
+
+  .editable-row:not(:hover):not(:focus-within) .editable-title {
+    white-space: normal;
+  }
+
+  .view-link,
+  .restore-button,
+  .trash-button {
+    justify-self: start;
+  }
+
+  .folder-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+
+  .folder-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .folder-tab {
+    flex: 0 0 auto;
+  }
+
+  .markdown-heading {
+    align-items: stretch;
+  }
+
+  .markdown-view {
+    max-height: 66vh;
+    padding: 14px;
+  }
+
+  .return-link,
+  .copy-button {
+    justify-self: start;
+  }
+
+  .finance-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .finance-tabs button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .wealth-main-card {
+    min-height: auto;
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .wealth-balance > strong {
+    font-size: 44px;
+    line-height: 1;
+  }
+
+  .monthly-spending {
+    padding-top: 18px;
+    padding-left: 0;
+    border-top: 1px solid rgba(183, 96, 61, 0.18);
+    border-left: 0;
+  }
+
+  .monthly-spending-head,
+  .monthly-spending-body,
+  .monthly-totals span {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .monthly-totals {
+    width: 100%;
+  }
+
+  .monthly-totals span {
+    gap: 4px;
+  }
+
+  .monthly-donut {
+    align-self: center;
+  }
+
+  .receipt-scanner {
+    position: static;
+    grid-row: 1;
+  }
+
+  .receipt-scanner-card {
+    max-width: none;
+  }
+
+  .receipt-form,
+  .finance-form,
+  .dream-create,
+  .detail-form,
+  .money-route-list label,
+  .simple-rule-list label,
+  .success-list div,
+  .swt-task-copy label,
+  .swt-assessment-list label,
+  .swt-review-fields,
+  .swt-scene-content dl {
+    grid-template-columns: 1fr;
+  }
+
+  .receipt-category-line {
+    grid-template-columns: 1fr;
+  }
+
+  .swt-system {
+    gap: 12px;
+  }
+
+  .swt-status-band {
+    grid-template-columns: 1fr;
+    padding: 16px;
+  }
+
+  .swt-status-title h2 {
+    font-size: 24px;
+  }
+
+  .swt-tabs {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+  }
+
+  .swt-tabs button {
+    flex: 0 0 auto;
+    min-width: 96px;
+  }
+
+  .swt-task-copy > div,
+  .swt-recorder,
+  .swt-timer-box,
+  .swt-section-heading,
+  .swt-progress-tools {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .swt-practice-room {
+    min-height: auto;
+  }
+
+  .swt-practice-room > h3 {
+    font-size: 21px;
+  }
+
+  .swt-question-list {
+    position: static;
+    max-height: none;
+  }
+
+  .swt-scene-list summary {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .swt-scene-list summary > small {
+    grid-column: 2;
+  }
+
+  .swt-scene-content {
+    padding-left: 40px;
+  }
+}

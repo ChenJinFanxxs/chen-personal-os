@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export default function Error({
@@ -30,7 +29,7 @@ export default function Error({
           <button type="button" onClick={reset}>
             重新加载
           </button>
-          <Link href="/">回到首页</Link>
+          <a href="/">回到首页</a>
         </div>
       </section>
     </main>
