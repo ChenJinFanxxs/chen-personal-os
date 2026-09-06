@@ -25,6 +25,11 @@ test('private storage: authentication, pairing, conflicts, retries, files and re
     const paired=await call('/pair',{code:pair.code,name:'phone'}); assert.equal(paired.status,200);
     const phone=paired.headers.get('set-cookie').split(';')[0];
     assert.equal((await call('/pair',{code:pair.code})).status,403);
+    const nativePair=await (await call('/pairing',{},cookie)).json();
+    const native=await mf.dispatchFetch('https://workbench.test/api/private/pair',{method:'POST',headers:{origin:'https://localhost','x-personal-os-client':'android','content-type':'application/json'},body:JSON.stringify({code:nativePair.code,name:'android'})});
+    assert.equal(native.status,200); const nativeToken=(await native.json()).deviceToken; assert.match(nativeToken,/^[a-f0-9]{64}$/);
+    const nativeRecords=await mf.dispatchFetch('https://workbench.test/api/private/records',{headers:{origin:'https://localhost','x-personal-os-client':'android',authorization:`Bearer ${nativeToken}`}}); assert.equal(nativeRecords.status,200);
+    const forgedNative=await mf.dispatchFetch('https://workbench.test/api/private/pair',{method:'POST',headers:{origin:'https://evil.test','x-personal-os-client':'android','content-type':'application/json'},body:JSON.stringify({code:'0'.repeat(64),name:'attacker'})}); assert.equal(forgedNative.status,403);
     const expired=await (await call('/pairing',{},cookie)).json(); await db.prepare('UPDATE pairings SET expires_at=0').run();
     assert.equal((await call('/pair',{code:expired.code})).status,403);
     const op={id:'skill:test',revision:0,operationId:crypto.randomUUID(),value:{slug:'test',name:'中文',markdown:'# 完整原文\n你好'}};

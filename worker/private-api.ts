@@ -25,7 +25,8 @@ async function body(request: Request) {
   return JSON.parse(new TextDecoder().decode(await limitedBytes(request, 8 * 1024 * 1024)));
 }
 async function device(request: Request, env: PrivateEnv) {
-  const value = request.headers.get("cookie")?.split(";").map(s => s.trim()).find(s => s.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
+  const bearer = request.headers.get("authorization")?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
+  const value = bearer ?? request.headers.get("cookie")?.split(";").map(s => s.trim()).find(s => s.startsWith(`${cookieName}=`))?.slice(cookieName.length + 1);
   if (!value || !/^[a-f0-9]{64}$/.test(value)) return null;
   return env.DB.prepare("SELECT id, name, created_at FROM devices WHERE token_hash = ?").bind(await hash(value)).first<Device>();
 }
@@ -43,8 +44,9 @@ async function newDevice(env: PrivateEnv, name: unknown) {
 export async function privateApi(request: Request, env: PrivateEnv): Promise<Response> {
   try {
     const url = new URL(request.url); const path = url.pathname.slice("/api/private".length); const method = request.method;
+    const nativeClient = request.headers.get("x-personal-os-client") === "android" && request.headers.get("origin") === "https://localhost";
     if (!["GET", "POST", "DELETE"].includes(method)) return json({ error: "不支持的操作" }, 405);
-    if (method !== "GET" && (request.headers.get("origin") !== url.origin || request.headers.get("sec-fetch-site") === "cross-site")) return json({ error: "请求来源不匹配" }, 403);
+    if (method !== "GET" && !nativeClient && (request.headers.get("origin") !== url.origin || request.headers.get("sec-fetch-site") === "cross-site")) return json({ error: "请求来源不匹配" }, 403);
     if (!env.DB) return json({ error: "云端储存尚未就绪" }, 503);
     if (path === "/bootstrap" && method === "POST") {
       if (!(await rateLimit(request, env, "bootstrap"))) return json({ error: "尝试过多，请稍后再试" }, 429);
@@ -66,12 +68,14 @@ export async function privateApi(request: Request, env: PrivateEnv): Promise<Res
       if (path === "/pair") {
         const consumed = await env.DB.prepare("DELETE FROM pairings WHERE hash=? AND expires_at>? AND device_id IN (SELECT id FROM devices) RETURNING hash").bind(codeHash, Date.now()).first();
         if (!consumed) return json({ error: "配对码已失效或已使用，请重新生成" }, 403);
-        return json({ ok: true }, 200, { "Set-Cookie": cookie(await newDevice(env, input.name), request) });
+        const secret = await newDevice(env, input.name);
+        return nativeClient ? json({ ok: true, deviceToken: secret }) : json({ ok: true }, 200, { "Set-Cookie": cookie(secret, request) });
       }
       const recovery = token();
       const consumed = await env.DB.prepare("UPDATE workspace SET recovery_hash=? WHERE id=1 AND recovery_hash=? RETURNING id").bind(await hash(recovery), codeHash).first();
       if (!consumed) return json({ error: "恢复码无效或已使用" }, 403);
-      return json({ recovery }, 200, { "Set-Cookie": cookie(await newDevice(env, input.name), request) });
+      const secret = await newDevice(env, input.name);
+      return nativeClient ? json({ recovery, deviceToken: secret }) : json({ recovery }, 200, { "Set-Cookie": cookie(secret, request) });
     }
     const current = await device(request, env);
     if (path === "/session" && method === "GET") return json({ paired: Boolean(current), device: current });

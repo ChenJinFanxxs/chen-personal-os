@@ -29,7 +29,23 @@ interface ExecutionContext {
 const worker = {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/private/")) return privateApi(request, env as unknown as PrivateEnv);
+    if (url.pathname.startsWith("/api/private/")) {
+      const nativeOrigin = request.headers.get("origin") === "https://localhost" && request.headers.get("x-personal-os-client") === "android";
+      const corsHeaders = new Headers();
+      if (nativeOrigin) {
+        corsHeaders.set("Access-Control-Allow-Origin", "https://localhost");
+        corsHeaders.set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Personal-OS-Client");
+        corsHeaders.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+        corsHeaders.set("Access-Control-Max-Age", "600");
+        corsHeaders.set("Vary", "Origin");
+      }
+      if (request.method === "OPTIONS") return new Response(null, { status: nativeOrigin ? 204 : 403, headers: corsHeaders });
+      const response = await privateApi(request, env as unknown as PrivateEnv);
+      if (!nativeOrigin) return response;
+      const headers = new Headers(response.headers);
+      corsHeaders.forEach((value, key) => headers.set(key, value));
+      return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
+    }
 
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];

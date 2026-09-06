@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode,
 import { Cloud, Download, RefreshCw, Smartphone, Trash2, Upload, X } from "lucide-react";
 import QRCode from "qrcode";
 import JSZip from "jszip";
+import { Capacitor } from "@capacitor/core";
 import { validateRecord } from "./record-validation";
 
 export type SavedRecord = { id: string; value: unknown; revision: number; deleted?: boolean; updatedAt?: number };
@@ -14,12 +15,28 @@ const cacheKey = "personal-os-private-cache-v1";
 const emptyCache = (): Cache => ({ records: {}, pending: {}, conflicts: {} });
 const labels: Record<string, string> = { finance: "理财", english: "英语", "skill-edits": "收录标题与标签", "skill-folders": "收录分类" };
 const legacyKeys: Record<string, string> = { finance: "personal-os-finance-v1", english: "personal-os-english-v2", "skill-edits": "personal-os-skill-library-edits-v1", "skill-folders": "personal-os-skill-folders-v1" };
-const apiRoot = "/api/private";
+const nativeApp = Capacitor.isNativePlatform();
+const nativeTokenKey = "personal-os-native-device-v1";
+const cloudOrigin = "https://chen-personal-os-20260810.chenjinfan43.chatgpt.site";
+const apiRoot = nativeApp ? `${cloudOrigin}/api/private` : "/api/private";
+
+async function privateFetch(path: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  if (nativeApp) {
+    headers.set("X-Personal-OS-Client", "android");
+    const token = localStorage.getItem(nativeTokenKey);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(apiRoot + path, { ...init, headers, credentials: nativeApp ? "omit" : "same-origin", cache: "no-store" });
+}
 
 export async function api(path: string, data?: unknown, method?: string) {
-  const response = await fetch(apiRoot + path, { method: method ?? (data === undefined ? "GET" : "POST"), credentials: "same-origin", cache: "no-store", headers: data === undefined ? undefined : { "Content-Type": "application/json" }, body: data === undefined ? undefined : JSON.stringify(data) });
-  const value = await response.json();
+  const response = await privateFetch(path, { method: method ?? (data === undefined ? "GET" : "POST"), headers: data === undefined ? undefined : { "Content-Type": "application/json" }, body: data === undefined ? undefined : JSON.stringify(data) });
+  let value: any;
+  try { value = await response.json(); }
+  catch { throw Object.assign(new Error(nativeApp ? "云端暂时不可达" : "服务器返回了无法读取的内容"), { status: response.status }); }
   if (!response.ok) throw Object.assign(new Error(value.error || "请求失败"), { status: response.status, conflict: value.conflict });
+  if (nativeApp && typeof value.deviceToken === "string") localStorage.setItem(nativeTokenKey, value.deviceToken);
   return value;
 }
 function download(blob: Blob, name: string) {
@@ -48,7 +65,12 @@ export async function queueAttachment(blob: Blob) {
 export function PrivateAudio({ id }: { id: string }) {
   const [src, setSrc] = useState("");
   useEffect(() => { let active = true; let objectUrl = "";
-    void fileAction("readonly", store => store.get(id)).then(item => { if (!active) return; objectUrl = item ? URL.createObjectURL(item.blob) : `${apiRoot}/files/${id}`; setSrc(objectUrl); });
+    void fileAction("readonly", store => store.get(id)).then(async item => {
+      if (!active) return;
+      if (item) objectUrl = URL.createObjectURL(item.blob);
+      else { const response = await privateFetch(`/files/${id}`); if (!response.ok) return; objectUrl = URL.createObjectURL(await response.blob()); }
+      if (active) setSrc(objectUrl);
+    });
     return () => { active = false; if (objectUrl.startsWith("blob:")) URL.revokeObjectURL(objectUrl); };
   }, [id]);
   // These are user-created practice recordings, so no transcript track exists.
@@ -95,7 +117,7 @@ export function PrivateStore({ children }: { children: ReactNode }) {
     busy.current = true;
     try {
       const session = await api("/session");
-      if (!session.paired) { setPaired(false); commit({ ...current.current, knownDevice: false }); setStatus("请配对此设备"); return; }
+      if (!session.paired) { if (nativeApp) localStorage.removeItem(nativeTokenKey); setPaired(false); commit({ ...current.current, knownDevice: false }); setStatus("请配对此设备"); return; }
       setPaired(true);
       for (const pending of Object.values(current.current.pending)) {
         if (pending.id !== "finance") continue;
@@ -109,7 +131,7 @@ export function PrivateStore({ children }: { children: ReactNode }) {
       }
       const attachments = await fileAction("readonly", store => store.getAll());
       for (const item of attachments.filter((item: any) => !item.uploaded)) {
-        const response = await fetch(`${apiRoot}/files/${item.id}`, { method: "POST", headers: { "Content-Type": item.blob.type || "audio/webm" }, body: item.blob });
+        const response = await privateFetch(`/files/${item.id}`, { method: "POST", headers: { "Content-Type": item.blob.type || "audio/webm" }, body: item.blob });
         if (!response.ok) throw new Error("录音或图片上传失败，已保留在此设备");
         await fileAction("readwrite", store => store.put({ ...item, uploaded: true }));
       }
@@ -129,11 +151,14 @@ export function PrivateStore({ children }: { children: ReactNode }) {
       const result = await api("/records"); const records = Object.fromEntries(result.records.map((r: SavedRecord) => [r.id, r]));
       commit({ ...current.current, records, knownDevice: true });
       setStatus(Object.keys(current.current.conflicts).length ? "有修改冲突，请处理" : Object.keys(current.current.pending).length ? "待同步" : "已同步");
-    } catch (error: any) { setStatus(`同步失败：${error.message}`); }
+    } catch (error: any) {
+      if (nativeApp && current.current.knownDevice) { setPaired(true); setStatus("离线模式 · 修改暂存此设备"); }
+      else setStatus(`同步失败：${error.message}`);
+    }
     finally { busy.current = false; setReady(true); }
   }
   useEffect(() => {
-    try { const saved = JSON.parse(localStorage.getItem(cacheKey) || "null"); if (saved?.records && saved?.pending && saved?.conflicts) { current.current = saved; setCache(saved); if (!navigator.onLine && saved.knownDevice) setPaired(true); } } catch { setStatus("本地缓存无法读取，正在尝试云端恢复"); }
+    try { const saved = JSON.parse(localStorage.getItem(cacheKey) || "null"); if (saved?.records && saved?.pending && saved?.conflicts) { current.current = saved; setCache(saved); if (saved.knownDevice) setPaired(true); } } catch { setStatus("本地缓存无法读取，正在尝试云端恢复"); }
     const legacy: Record<string, unknown> = {};
     for (const [id, key] of Object.entries(legacyKeys)) { const raw = localStorage.getItem(key); if (raw) { try { legacy[id] = JSON.parse(raw); } catch { legacy[`${id}-unreadable`] = raw; } } }
     const oldEnglish = localStorage.getItem("personal-os-english-v1");
@@ -159,9 +184,11 @@ export function PrivateStore({ children }: { children: ReactNode }) {
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void flush(); }, 15000);
     const resume = () => { if (document.visibilityState === "visible") void flush(); };
     const install = (event: Event) => { event.preventDefault(); setInstallPrompt(event); };
+    const nativePair = (event: Event) => { const value = (event as CustomEvent<string>).detail; if (/^[a-f0-9]{64}$/.test(value)) { setCode(value); setPanel(true); setStatus("已读取安卓配对码，请连接此设备"); } };
     window.addEventListener("online", resume); document.addEventListener("visibilitychange", resume); window.addEventListener("beforeinstallprompt", install);
-    if ("serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
-    return () => { clearInterval(timer); window.removeEventListener("online", resume); document.removeEventListener("visibilitychange", resume); window.removeEventListener("beforeinstallprompt", install); };
+    window.addEventListener("personal-os-pair", nativePair);
+    if (!nativeApp && "serviceWorker" in navigator) void navigator.serviceWorker.register("/sw.js").catch(() => {});
+    return () => { clearInterval(timer); window.removeEventListener("online", resume); document.removeEventListener("visibilitychange", resume); window.removeEventListener("beforeinstallprompt", install); window.removeEventListener("personal-os-pair", nativePair); };
   }, []);
   useEffect(() => { if (!paired || !Object.keys(cache.pending).length) return; const timer = setTimeout(() => void flush(), 800); return () => clearTimeout(timer); }, [cache.pending, paired]);
   async function run(action: () => Promise<void>) { try { await action(); } catch (e: any) { setStatus(e.message); } }
@@ -170,9 +197,9 @@ export function PrivateStore({ children }: { children: ReactNode }) {
     if (result.recovery) setRecovery(result.recovery);
     setCode(""); await flush();
   }
-  async function createPair() {
+  async function createPair(target: "web" | "android" = "web") {
     const result = await api("/pairing", {});
-    const link = `${location.origin}/#pair=${result.code}`;
+    const link = target === "android" ? `personalos://pair?code=${result.code}` : `${nativeApp ? cloudOrigin : location.origin}/#pair=${result.code}`;
     setPairLink(link); setQr(await QRCode.toDataURL(link, { width: 240, margin: 2 }));
     setTimeout(() => { setQr(""); setPairLink(""); }, 600000);
   }
@@ -185,7 +212,7 @@ export function PrivateStore({ children }: { children: ReactNode }) {
     const local = await fileAction("readonly", store => store.getAll());
     for (const item of list) {
       const cached = local.find((entry: any) => entry.id === item.id);
-      const response = cached ? null : await fetch(`${apiRoot}/files/${item.id}`, { cache: "no-store" });
+      const response = cached ? null : await privateFetch(`/files/${item.id}`);
       if (response && !response.ok) throw new Error("附件下载失败，尚未生成完整备份");
       zip.file(`files/${item.id}`, cached?.blob ?? await response!.blob());
     }
@@ -238,7 +265,7 @@ export function PrivateStore({ children }: { children: ReactNode }) {
       <p role="status">{status}</p>
       <button onClick={() => void run(async () => { if (installPrompt) { await installPrompt.prompt(); setInstallPrompt(null); } else setStatus(installHint); })}><Smartphone size={16} />添加到主屏幕</button>
       {!paired && <><h3>连接私人空间</h3><label>{recoveryMode ? "恢复码" : "配对码或配对链接"}<input type="password" value={code} onChange={e => { const raw = e.target.value; try { const url = new URL(raw); setCode(new URLSearchParams(url.hash.slice(1)).get("pair") || raw); } catch { setCode(raw); } }} autoComplete="off" /></label><button onClick={() => void run(pair)}>连接此设备</button><button onClick={() => setRecoveryMode(!recoveryMode)}>{recoveryMode ? "使用配对码" : "使用恢复码"}</button></>}
-      {paired && <><h3>设备配对</h3><button onClick={() => void run(createPair)}>生成十分钟配对码</button>{qr && <div className="pairing-code"><img src={qr} alt="手机配对二维码" width="240" height="240" /><button onClick={() => void run(async () => { await navigator.clipboard.writeText(pairLink); setStatus("配对链接已复制，请勿转发给其他人"); })}>复制配对链接</button></div>}
+      {paired && <><h3>设备配对</h3><button onClick={() => void run(() => createPair("web"))}>生成网页配对码</button><button onClick={() => void run(() => createPair("android"))}>生成安卓安装包配对码</button>{qr && <div className="pairing-code"><img src={qr} alt="手机配对二维码" width="240" height="240" /><button onClick={() => void run(async () => { await navigator.clipboard.writeText(pairLink); setStatus("配对链接已复制，请勿转发给其他人"); })}>复制配对链接</button></div>}
       {devices.map(d => <div className="private-device" key={d.id}><span>{d.name}</span><button title={`撤销${d.name}`} aria-label={`撤销${d.name}`} onClick={() => void run(async () => { if (!confirm(`撤销「${d.name}」的云端访问？`)) return; await api(`/devices/${d.id}`, undefined, "DELETE"); setDevices(await api("/devices")); await flush(); })}><Trash2 size={16}/></button></div>)}
       <h3>备份与恢复</h3><button onClick={() => void run(exportBackup)}><Download size={16}/>导出备份</button><button onClick={() => inputRef.current?.click()}><Upload size={16}/>导入备份</button><input ref={inputRef} type="file" accept=".json,.zip" hidden onChange={e => { void run(() => readImport(e.target.files?.[0])); e.target.value = ""; }} />
       <button onClick={() => void run(async () => { if (confirm("生成新恢复码后，旧恢复码失效。继续？")) setRecovery((await api("/recovery", {})).recovery); })}>生成新恢复码</button>
