@@ -3,6 +3,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useSyncedState } from "../private-store";
 
 type Tx = { id: string; type: "income" | "expense"; amount: number; date: string; category: string; account: string; note: string };
@@ -252,6 +253,7 @@ function ReceiptScanner({ addReceiptTx }: { addReceiptTx: (receipt: ReceiptDraft
         workerPath: "/ocr/worker/worker.min.js",
         corePath: "/ocr/core",
         langPath: "/ocr/lang",
+        gzip: !Capacitor.isNativePlatform(),
         logger: (info) => {
           if (info.status === "recognizing text") setProgress(Math.max(5, Math.round((info.progress ?? 0) * 100)));
         },
